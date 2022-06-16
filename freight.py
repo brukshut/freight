@@ -28,7 +28,7 @@ class Shipments(db.Model):
     __tablename__ = 'shipments'
     id = db.Column(db.String, primary_key=True)
     eta = db.Column(db.String, nullable=True)
-    org_id = db.Column(db.String, db.ForeignKey('organizations.id'))
+    org_id = db.Column(db.Enum, db.ForeignKey('organizations.id'))
     weight = db.Column(db.Integer, nullable=True, default=None)
     unit = db.Column(db.String, nullable=True, default=None)
 
@@ -78,6 +78,7 @@ class Shipment(Resource):
         id = data['referenceId']
 
         ## substitute list of org codes with list of org ids
+        #org_id = [str(Orgs.query.filter_by(code=org).first()) for org in data['organizations']]
         org_id = repr([str(Orgs.query.filter_by(code=org).first()) for org in data['organizations']])
 
         ## debugging

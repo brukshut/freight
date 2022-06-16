@@ -138,23 +138,4 @@ messages = [
       ]
     }
   },
-
-  {
-    "type": "SHIPMENT",
-    "referenceId": "S00001175",
-    "organizations": ["FAA"],
-    "estimatedTimeArrival": "2020-11-20T00:00:00",
-    "transportPacks": {
-      "nodes": [
-        {
-          "totalWeight": {
-            "weight": "3",
-            "unit": "KILOGRAMS"
-          }
-        }
-      ]
-    }
-  },
-
-
 ]

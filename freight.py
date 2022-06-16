@@ -28,15 +28,43 @@ class Shipments(db.Model):
     __tablename__ = 'shipments'
     id = db.Column(db.String, primary_key=True)
     eta = db.Column(db.String, nullable=True)
-    org_id = db.Column(db.Enum, db.ForeignKey('organizations.id'))
+    org_id = db.Column(db.String, db.ForeignKey('organizations.id'))
     weight = db.Column(db.Integer, nullable=True, default=None)
     unit = db.Column(db.String, nullable=True, default=None)
 
     def __repr__(self):
         return f"{self.id}"
 
-
 ## routes
+class Grossweight(Resource):
+    oz_per_lb = 16
+    oz_per_kg = 35.2739
+
+    lb_per_oz = 0.0625
+    lb_per_kg = 2.2046
+
+    kg_per_lb = 0.4536
+    kg_per_oz = 0.0284
+
+    def get(self, unit):
+        if not unit in ('pounds', 'ounces', 'kilograms'):
+            abort(400, message=f"{unit} not supported.")
+
+        shipments = Shipments.query.all()
+        kgs = sum([i.weight for i in shipments if i.unit == 'KILOGRAMS'])
+        lbs = sum([i.weight for i in shipments if i.unit == 'POUNDS'])
+        ozs = sum([i.weight for i in shipments if i.unit == 'OUNCES'])
+
+        if unit == 'pounds':
+            total = (kgs * self.lb_per_kg) + (ozs * self.lb_per_oz) + lbs
+        if unit == 'kilograms':
+            total = (lbs * self.kg_per_lb) + (ozs * self.kg_per_oz) + kgs
+        if unit == 'ounces':
+            total = (kgs * self.oz_per_kg) + (lbs * self.oz_per_lb) + ozs
+
+        return jsonify(weight=total, unit=unit)
+
+
 class Organization(Resource):
     def get(self, id):
         org = Orgs.query.get(id)
@@ -112,6 +140,7 @@ class Shipment(Resource):
 
 api.add_resource(Organization, '/organization', '/organization/<string:id>')
 api.add_resource(Shipment, '/shipment/<string:id>', '/shipment')
+api.add_resource(Grossweight, '/grossweight/<string:unit>', '/grossweight')
 
 if __name__ == '__main__':
     app.run(debug=True)

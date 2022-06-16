@@ -1,0 +1,4 @@
+# requirements.in
+flask
+flask-sqlalchemy
+flask-restful

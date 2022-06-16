@@ -1,0 +1,6 @@
+*~
+.python-version
+*.db
+*~
+.DS_Store
+venv

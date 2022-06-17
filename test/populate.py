@@ -5,17 +5,25 @@ from freight_messages import messages
 import requests
 import json
 
-url = 'http://localhost:5000'
+base_url = 'http://localhost:5000'
 
 for msg in messages:
     if msg['type'] == 'ORGANIZATION':
-        endpoint = f"http://localhost:5000/organization"
-        response = requests.post(endpoint, json=json.dumps(msg))
+        endpoint = f"{base_url}/organization"
+        try:
+            response = requests.post(endpoint, json=json.dumps(msg))
+            print(response.text)
+
+        except requests.exceptions.RequestException as e:
+            raise SystemExit(e)
+
         print(response.text)
 
     if msg['type'] == 'SHIPMENT':
-        print(json.dumps(msg))
-        endpoint = f"http://localhost:5000/shipment"
-        response = requests.post(endpoint, json=json.dumps(msg))
-        print(response.text)
+        endpoint = f"{base_url}/shipment"
+        try:
+            response = requests.post(endpoint, json=json.dumps(msg))
+            print(response.text)
 
+        except requests.exceptions.RequestException as e:
+            raise SystemExit(e)

@@ -1,24 +1,27 @@
 #!/usr/bin/env python
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, make_response, request
 from flask_restful import Resource, Api, abort
 from flask_sqlalchemy import SQLAlchemy
 import json
+from os import getenv
+from dotenv import load_dotenv
+load_dotenv()
 
 app = Flask(__name__)
 api = Api(app)
 
 ## database config
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///freight.db'
+connection = f"mysql+pymysql://{getenv('MYSQL_ROOT_USER')}:{getenv('MYSQL_ROOT_PASSWORD')}@{getenv('MYSQL_HOST')}/freight"
+app.config['SQLALCHEMY_DATABASE_URI'] = connection
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
 ## models
 class Orgs(db.Model):
     __tablename__ = 'organizations'
-    id = db.Column(db.String, primary_key=True)
-    code = db.Column(db.String, unique=True)
-    shipment = db.relationship('Shipments', backref='orgs')
+    id = db.Column(db.String(64), primary_key=True)
+    code = db.Column(db.String(32), default=None, nullable=False)
 
     def __repr__(self):
         return f"{self.id}"
@@ -26,14 +29,15 @@ class Orgs(db.Model):
 
 class Shipments(db.Model):
     __tablename__ = 'shipments'
-    id = db.Column(db.String, primary_key=True)
-    eta = db.Column(db.String, nullable=True)
-    org_id = db.Column(db.String, db.ForeignKey('organizations.id'))
+    id = db.Column(db.String(64), primary_key=True)
+    eta = db.Column(db.String(64), nullable=True, default=None)
+    org_id = db.Column(db.Text, nullable=True, default=None)
     weight = db.Column(db.Integer, nullable=True, default=None)
-    unit = db.Column(db.String, nullable=True, default=None)
+    unit = db.Column(db.String(32), nullable=True, default=None)
 
     def __repr__(self):
         return f"{self.id}"
+
 
 ## routes
 class Grossweight(Resource):
@@ -56,13 +60,13 @@ class Grossweight(Resource):
         ozs = sum([i.weight for i in shipments if i.unit == 'OUNCES'])
 
         if unit == 'pounds':
-            total = (kgs * self.lb_per_kg) + (ozs * self.lb_per_oz) + lbs
+            total = round((kgs * self.lb_per_kg) + (ozs * self.lb_per_oz) + lbs, 3)
         if unit == 'kilograms':
-            total = (lbs * self.kg_per_lb) + (ozs * self.kg_per_oz) + kgs
+            total = round((lbs * self.kg_per_lb) + (ozs * self.kg_per_oz) + kgs, 3)
         if unit == 'ounces':
-            total = (kgs * self.oz_per_kg) + (lbs * self.oz_per_lb) + ozs
+            total = round((kgs * self.oz_per_kg) + (lbs * self.oz_per_lb) + ozs, 3)
 
-        return jsonify(weight=total, unit=unit)
+        return make_response(jsonify(weight=total, unit=unit), 200)
 
 
 class Organization(Resource):
@@ -91,11 +95,10 @@ class Organization(Resource):
             db.session.add(org)
 
         db.session.commit()
-        return jsonify(data)
+        return make_response(jsonify(data), 201)
 
 
 class Shipment(Resource):
-
     def get(self, id):
         ship = Shipments.query.get(id)
         return jsonify(id=ship.id, eta=ship.eta, org_id=eval(ship.org_id), weight=ship.weight, unit=ship.unit) if ship else abort(404, message=f"{id} not found.")
@@ -105,12 +108,11 @@ class Shipment(Resource):
         data = json.loads(request.get_json())
         id = data['referenceId']
 
-        ## substitute list of org codes with list of org ids
-        #org_id = [str(Orgs.query.filter_by(code=org).first()) for org in data['organizations']]
-        org_id = repr([str(Orgs.query.filter_by(code=org).first()) for org in data['organizations']])
-
         ## debugging
         app.logger.debug(f"{data} {type(data)} --> post payload")
+
+        ## substitute list of org codes with list of org ids
+        org_id = repr([str(Orgs.query.filter_by(code=org).first()) for org in data['organizations']])
 
         ## some shipments will not have an eta
         eta = data.get('estimatedTimeArrival', None)
@@ -135,7 +137,7 @@ class Shipment(Resource):
             db.session.add(shipment)
 
         db.session.commit()
-        return jsonify(data)
+        return make_response(jsonify(data), 201)
 
 
 api.add_resource(Organization, '/organization', '/organization/<string:id>')
